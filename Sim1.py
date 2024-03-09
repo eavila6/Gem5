@@ -92,8 +92,9 @@ system.cpu.interrupts[0].pio = system.membus.mem_side_ports
 system.cpu.interrupts[0].int_requestor = system.membus.cpu_side_ports
 system.cpu.interrupts[0].int_responder = system.membus.mem_side_ports
 
-binary = '/home/carteryoung/mat-mult'  # Make sure to adjust this path
-
+#binary = '/home/carteryoung/mat-mult'  # Make sure to adjust this path
+#Ethan's bin path
+binary = '/home/ethan429/Documents/CS429/Gem5/mat-mult'  # adjust as needed
 # Workload and process configuration
 system.workload = SEWorkload.init_compatible(binary)
 process = Process()
