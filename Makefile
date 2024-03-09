@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS= -g -W -Wall
-SOURCE = mat-mult.CC
+SOURCE = mat-mult.c
 OBJ = $(SOURCE: .c=.o)
 PROG = mat-mult
 
