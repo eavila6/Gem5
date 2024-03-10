@@ -28,16 +28,16 @@ system.clk_domain = SrcClockDomain()
 system.clk_domain.clock = '1GHz'
 system.clk_domain.voltage_domain = VoltageDomain()
 
-# create a simple CPU
-system.cpu = AtomicSimpleCPU()  # Use ArmSimpleCPU() for ARM
-
 # set up system
 system.mem_mode = 'atomic'
 system.mem_ranges = [AddrRange('4GB')]
 system.membus = SystemXBar()
 
+# create a simple CPU
+system.cpu = AtomicSimpleCPU()  # Use ArmSimpleCPU() for ARM
+
 # L1 Instruction Cache
-system.l1i_cache = Cache(size='256kB',
+system.cpu.icache = L1ICache(size='256kB',
                          assoc=1,
                          tag_latency=20,
                          data_latency=2,
@@ -48,7 +48,7 @@ system.l1i_cache = Cache(size='256kB',
                          tags=BaseSetAssoc())
 
 # L1 Data Cache
-system.l1d_cache = Cache(size='256kB',
+system.cpu.dcache = L1DCache(size='256kB',
                          assoc=1,
                          tag_latency = 2,
                          data_latency = 2,
@@ -59,7 +59,7 @@ system.l1d_cache = Cache(size='256kB',
                          tags=BaseSetAssoc())
 
 # L2 Cache
-system.l2_cache = Cache(size='256kB',
+system.l2cache = L2Cache(size='256kB',
                          assoc=1,
                          tag_latency = 2,
                          data_latency = 2,
@@ -73,18 +73,24 @@ system.l2_cache = Cache(size='256kB',
 system.l2bus = L2XBar()
 
 # Connect the L1 caches to the CPU
-system.cpu.icache_port = system.l1i_cache.cpu_side
-system.cpu.dcache_port = system.l1d_cache.cpu_side
+system.cpu.icache.connectCPU(system.cpu)
+system.cpu.dcache.connectCPU(system.cpu)
 
 # Connect L1 caches to bus
-system.l1i_cache.mem_side = system.l2bus.cpu_side_ports
-system.l1d_cache.mem_side = system.l2bus.cpu_side_ports
+system.cpu.icache.connectBus(system.l2bus)
+system.cpu.dcache.connectBus(system.l2bus)
 
 # Connect the bus to L2
-system.l2bus.mem_side_ports = system.l2_cache.cpu_side
+system.l2cache.connectCPUSideBus(system.l2bus)
 
 # Connect L2 to bus
-system.l2_cache.mem_side = system.membus.cpu_side_ports
+system.l2cache.connectMemSideBus(system.membus)
+
+# Processor interrupts
+system.cpu.createInterruptController()
+system.cpu.interrupts[0].pio = system.membus.mem_side_ports
+system.cpu.interrupts[0].int_requestor = system.membus.cpu_side_ports
+system.cpu.interrupts[0].int_responder = system.membus.mem_side_ports
 
 # Memory controller configuration
 system.mem_ctrl = MemCtrl()
@@ -94,16 +100,10 @@ system.mem_ctrl.dram.range = system.mem_ranges[0]
 # Connect mem to cpu
 system.mem_ctrl.port = system.membus.mem_side_ports
 
-# Processor interrupts
-
-system.cpu.createInterruptController()
-system.cpu.interrupts[0].pio = system.membus.mem_side_ports
-system.cpu.interrupts[0].int_requestor = system.membus.cpu_side_ports
-system.cpu.interrupts[0].int_responder = system.membus.mem_side_ports
-
 #binary = '/home/carteryoung/mat-mult'  # Make sure to adjust this path
 #Ethan's bin path
 binary = '/home/ethan429/Documents/CS429/Gem5/mat-mult'  # adjust as needed
+
 # Workload and process configuration
 system.workload = SEWorkload.init_compatible(binary)
 
@@ -111,7 +111,7 @@ system.workload = SEWorkload.init_compatible(binary)
 process = Process()
 
 # set the command
-process.cmd = [binary]
+process.cmd = [binary, 100]
 
 # set up the CPU to work and gen threads
 system.cpu.workload = process
