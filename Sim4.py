@@ -47,7 +47,7 @@ system.cpu.icache = L1ICache(
 
 # L1 Data Cache
 system.cpu.dcache = L1DCache(
-    size='128kB',  # Change for study
+    size='256kB',  # Change for study
     assoc=2,  # 2-way set-associative
     tag_latency=1,  # Set L1 hit time
     data_latency=1,
@@ -60,7 +60,7 @@ system.cpu.dcache = L1DCache(
 
 # L2 Cache
 system.l2cache = L2Cache(
-    size='2MB',  # Change for study
+    size='8MB',  # Change for study
     assoc=4,  # 4-way set-associative
     tag_latency=10,  # Set L2 hit time
     data_latency=10,  # Assuming data latency follows tag latency for L2
@@ -95,9 +95,15 @@ system.cpu.interrupts[0].int_requestor = system.membus.cpu_side_ports
 system.cpu.interrupts[0].int_responder = system.membus.mem_side_ports
 
 # Binary and workload configuration
-binary = '/home/carteryoung/gem5/configs/example/mat-mult'  # Adjust this path
+# binary = '/home/carteryoung/gem5/configs/example/mat-mult'  # Adjust this path
+#Ethan's bin path
+binary = '/home/ethan429/Documents/CS429/Gem5/mat-mult'  # adjust as needed
+
 system.workload = SEWorkload.init_compatible(binary)
 process = Process()
+# fyi you gotta manually type in matrix params via terminal
+# bc of the way  mat-mult is set up & gem5 being weird
+# args in the form of 100 100\n100 100 or 100\n100\n100\n100inputted from terminal
 process.cmd = [binary, 100]  # Assuming '100' is an argument to your binary
 system.cpu.workload = process
 system.cpu.createThreads()

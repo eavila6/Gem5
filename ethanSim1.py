@@ -110,8 +110,10 @@ system.workload = SEWorkload.init_compatible(binary)
 # create a process for our binary
 process = Process()
 
+#  print("waiting for command")
 # set the command
-process.cmd = [binary, 100]
+process.cmd = [binary, 100,100,100,100]
+# print("after binary command")
 
 # set up the CPU to work and gen threads
 system.cpu.workload = process
@@ -123,5 +125,5 @@ m5.instantiate()
 
 print("Beginning simulation!")
 exit_event = m5.simulate()
-print('Exiting @ tick %s because %s' % (exit_event.getCause(), m5.curTick()))
-print('Exiting @ tick %s because %s' % (m5.curTick(), exit_event.getCause()))
+print(f'Exiting @ tick {m5.curTick()}  because {exit_event.getCause()}')
+# print('Exiting @ tick {} because {}' % (m5.curTick(), exit_event.getCause()))

@@ -1,75 +1,115 @@
 """
 Authors: Carter Young and Ethan Avila
 Date: 03/12/2024
-Description: This file implements Simulation 2 as specified in the Project
+Description: This file implements an x86 write-back cache class as specified in the Project
 2 Description for Professor Juan Flores' CS 422 Class (Flores, 2024).
 
-To run: Go to terminal and enter ./build/X86/gem5.opt -d /home/carteryoung/gem5_output configs/example/Sim2.py --cpu-type=TimingSimpleCPU --caches --l1i_size=256kB --l1d_size=256kB --l1i_assoc=1 --l1d_assoc=1 --cacheline_size=32 --cmd=/gem5/Matrix/mat-mult
-
+To run:
+1. Relocate Sim{#}.py in any gem5 directory
+2. Create output directory for results
+3. Navigate to gem5 directory in terminal
+4. In terminal, enter "./build/X86/gem5.opt -d <output_filepath> <sim#.py_filepath>
 """
 
-from m5.objects import System, X86SimpleCPU, ArmSimpleCPU, SimpleMemory, Process
-from m5.objects import Cache
+# import the m5 lib
+import m5
+# import SimObjects we want
+from m5.defines import buildEnv
+from m5.objects import *
+from m5.util import convert
 
+from caches import *
+
+# create the system we'll sim
 system = System()
+
+# set system clock freq (for parent & children)
 system.clk_domain = SrcClockDomain()
 system.clk_domain.clock = '1GHz'
 system.clk_domain.voltage_domain = VoltageDomain()
 
-system.cpu = TimingSimpleCPU()
+# set up system
+system.mem_mode = 'atomic'
+system.mem_ranges = [AddrRange('4GB')]
+system.membus = SystemXBar()
 
-l1i_size = '64kB'  # L1 Instruction Cache Size
-l1d_size = '128kB' # L1 Data Cache Size
-l2_size = '2MB'    # L2 Cache Size
-associativities = [1, 2, 4, 8, 16, 32]
+# create a simple CPU
+system.cpu = AtomicSimpleCPU()  # Use ArmSimpleCPU() for ARM
 
 # L1 Instruction Cache
-system.l1i_cache = Cache(size=l1i_size,
+system.cpu.icache = L1ICache(size='256kB',
                          assoc=1,
-                         cache_line_size=32,
+                         tag_latency=20,
+                         data_latency=2,
+                         response_latency = 2,
+                         mshrs = 4,
+                         tgts_per_mshr = 20,
                          writeback_clean=True,
                          tags=BaseSetAssoc())
 
 # L1 Data Cache
-system.l1d_cache = Cache(size=l1d_size,
-                         assoc=1,
-                         cache_line_size=32,
+system.cpu.dcache = L1DCache(size='256kB',
+                         assoc=32,
+                         tag_latency = 2,
+                         data_latency = 2,
+                         response_latency = 2,
+                         mshrs = 4,
+                         tgts_per_mshr = 20,
                          writeback_clean=True,
                          tags=BaseSetAssoc())
 
-# L2 Cache (Shared)
-system.l2_cache = Cache(size=l2_size,
-                        assoc=assoc,  # Note: Adjust this if L2 associativity is to remain constant
-                        cache_line_size=32,
-                        writeback_clean=True,
-                        tags=BaseSetAssoc())
-
 # Connect the L1 caches to the CPU
-system.cpu.icache_port = system.l1i_cache.cpu_side
-system.cpu.dcache_port = system.l1d_cache.cpu_side
+system.cpu.icache.connectCPU(system.cpu)
+system.cpu.dcache.connectCPU(system.cpu)
 
-# Rest of system setup (e.g., memory system, bus)
+# create mem bus
+system.membus=SystemXBar()
 
-# Example memory system setup
-system.membus = SystemXBar()
-system.l1i_cache.mem_side = system.membus.slave
-system.l1d_cache.mem_side = system.membus.slave
+# connect caches to bus
+system.cpu.icache.connectBus(system.membus)
+system.cpu.dcache.connectBus(system.membus)
 
+# Processor interrupts
 system.cpu.createInterruptController()
-system.cpu.interrupts[0].pio = system.membus.master
-system.cpu.interrupts[0].int_master = system.membus.slave
-system.cpu.interrupts[0].int_slave = system.membus.master
+system.cpu.interrupts[0].pio = system.membus.mem_side_ports
+system.cpu.interrupts[0].int_requestor = system.membus.cpu_side_ports
+system.cpu.interrupts[0].int_responder = system.membus.mem_side_ports
 
-system.system_port = system.membus.slave
+# Memory controller configuration
+system.mem_ctrl = MemCtrl()
+system.mem_ctrl.dram = DDR3_1600_8x8()
+system.mem_ctrl.dram.range = system.mem_ranges[0]
 
-# Setup memory
-system.mem_ctrl = DDR3_1600_8x8()
-system.mem_ctrl.range = system.mem_ranges[0]
-system.mem_ctrl.port = system.membus.master
+# Connect mem to cpu
+system.mem_ctrl.port = system.membus.mem_side_ports
 
+#binary = '/home/carteryoung/mat-mult'  # Make sure to adjust this path
+#Ethan's bin path
+binary = '/home/ethan429/Documents/CS429/Gem5/mat-mult'  # adjust as needed
+
+# Workload and process configuration
 system.workload = SEWorkload.init_compatible(binary)
 
+# create a process for our binary
 process = Process()
-process.cmd = ['/gem5/Matrix/mat-mult']
+
+#  print("waiting for command")
+# set the command
+# fyi you gotta manually type in matrix params via terminal
+# bc of the way  mat-mult is set up & gem5 being weird
+# args in the form of 100 100\n100 100 or 100\n100\n100\n100inputted from terminal
+process.cmd = [binary, 100,100,100,100]
+# print("after binary command")
+
+# set up the CPU to work and gen threads
 system.cpu.workload = process
 system.cpu.createThreads()
+
+# Instantiate and run
+root = Root(full_system=False, system=system)
+m5.instantiate()
+
+print("Beginning simulation!")
+exit_event = m5.simulate()
+print(f'Exiting @ tick {m5.curTick()}  because {exit_event.getCause()}')
+# print('Exiting @ tick {} because {}' % (m5.curTick(), exit_event.getCause()))
